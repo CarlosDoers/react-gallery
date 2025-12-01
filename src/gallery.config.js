@@ -169,9 +169,10 @@ export const components = [
       cameraX: 2,
       cameraY: 0,
       cameraZ: 2,
-      waterColor: '#9bd8ff',
-      waterColorMid: '#4287f5',
-      waterColorDeep: '#186691'
+      waterColor: '#42b4fb',
+      waterColorMid: '#2e7af3',
+      waterColorDeep: '#183891',
+      enableMouseInteraction: false
     },
     controls: [
       { name: 'backgroundColor', label: 'Background', type: 'color' },
@@ -181,7 +182,8 @@ export const components = [
       { name: 'cameraZ', label: 'Camera Z', type: 'range', min: -50, max: 50, step: 0.1 },
       { name: 'waterColor', label: 'Water Surface Color', type: 'color' },
       { name: 'waterColorMid', label: 'Water Middle Color', type: 'color' },
-      { name: 'waterColorDeep', label: 'Water Deep Color', type: 'color' }
+      { name: 'waterColorDeep', label: 'Water Deep Color', type: 'color' },
+      { name: 'enableMouseInteraction', label: 'Enable Mouse Interaction', type: 'checkbox' }
     ]
   },
   {

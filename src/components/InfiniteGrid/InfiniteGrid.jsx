@@ -104,6 +104,8 @@ const vertexShader = `
   uniform float uMouseRippleSpeed;
   uniform float uMouseNoiseStrength;
 
+  uniform float uMouseEnabled;
+
   varying float vElevation;
   varying vec2 vUv;
   varying vec3 vNormal;
@@ -129,29 +131,31 @@ const vertexShader = `
     }
     
     // Mouse Interaction
-    // Calculate distance from vertex to mouse position (in world space xz plane)
-    float dist = distance(position.xz, uMouse);
-    
-    // Create a ripple effect (organic and smooth)
-    if(dist < uMouseRadius) {
-      // Smooth falloff from center using smoothstep for softness
-      float falloff = smoothstep(uMouseRadius, 0.0, dist);
+    if (uMouseEnabled > 0.5) {
+      // Calculate distance from vertex to mouse position (in world space xz plane)
+      float dist = distance(position.xz, uMouse);
       
-      // Add noise to the distance to make ripples irregular/distorted
-      float noiseVal = snoise(vec3(position.xz * 2.0, uTime * 1.0)) * uMouseNoiseStrength;
-      float distortedDist = dist + noiseVal;
+      // Create a ripple effect (organic and smooth)
+      if(dist < uMouseRadius) {
+        // Smooth falloff from center using smoothstep for softness
+        float falloff = smoothstep(uMouseRadius, 0.0, dist);
+        
+        // Add noise to the distance to make ripples irregular/distorted
+        float noiseVal = snoise(vec3(position.xz * 2.0, uTime * 1.0)) * uMouseNoiseStrength;
+        float distortedDist = dist + noiseVal;
 
-      // Ripples that move outward from the mouse (using uTime)
-      // sin(dist * frequency - time * speed)
-      float ripples = sin(distortedDist * uMouseRippleFrequency - uTime * uMouseRippleSpeed) * 0.2;
-      
-      // Combine with a subtle depression to "push" the water down slightly
-      float depression = -0.3 * uMouseStrength;
-      
-      // Mix them: mostly ripples, slight depression
-      float mouseEffect = (depression + ripples) * falloff;
-      
-      elevation += mouseEffect;
+        // Ripples that move outward from the mouse (using uTime)
+        // sin(dist * frequency - time * speed)
+        float ripples = sin(distortedDist * uMouseRippleFrequency - uTime * uMouseRippleSpeed) * 0.2;
+        
+        // Combine with a subtle depression to "push" the water down slightly
+        float depression = -0.3 * uMouseStrength;
+        
+        // Mix them: mostly ripples, slight depression
+        float mouseEffect = (depression + ripples) * falloff;
+        
+        elevation += mouseEffect;
+      }
     }
 
     return elevation;
@@ -166,10 +170,6 @@ const vertexShader = `
     float shift = 0.01;
     vec3 modelPositionA = modelPosition.xyz + vec3(shift, 0.0, 0.0);
     vec3 modelPositionB = modelPosition.xyz + vec3(0.0, 0.0, -shift);
-    
-    // Recalculate elevation for neighbors (we need to apply the wave function again)
-    // Note: Ideally we'd separate the base position from the wave offset, but for this effect:
-    // We approximate by just adding the wave elevation at the shifted coordinates to the base y (which is 0)
     
     float elevationA = waveElevation(modelPositionA);
     modelPositionA.y += elevationA;
@@ -270,7 +270,7 @@ const WATER_PARAMS = {
   uMouseNoiseStrength: 0.5, // How irregular/distorted the ripples are (0 = perfect circles)
 };
 
-const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep }) => {
+const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep, enableMouseInteraction }) => {
   const materialRef = useRef();
 
   const uniforms = useMemo(
@@ -290,6 +290,7 @@ const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep }) => {
       uColorMultiplier: { value: WATER_PARAMS.uColorMultiplier },
       uCameraPosition: { value: new THREE.Vector3() },
       uMouse: { value: new THREE.Vector2(0, 0) },
+      uMouseEnabled: { value: enableMouseInteraction ? 1.0 : 0.0 },
       // Mouse interaction uniforms
       uMouseRadius: { value: WATER_PARAMS.uMouseRadius },
       uMouseStrength: { value: WATER_PARAMS.uMouseStrength },
@@ -299,6 +300,13 @@ const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep }) => {
     }),
     [waterColor, waterColorMid, waterColorDeep]
   );
+
+  // Update uMouseEnabled when prop changes
+  useEffect(() => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uMouseEnabled.value = enableMouseInteraction ? 1.0 : 0.0;
+    }
+  }, [enableMouseInteraction]);
 
   useFrame((state) => {
     const { clock, camera } = state;
@@ -312,7 +320,7 @@ const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep }) => {
   });
 
   const handlePointerMove = (e) => {
-    if (materialRef.current) {
+    if (materialRef.current && enableMouseInteraction) {
       // e.point is the intersection point in world space
       materialRef.current.uniforms.uMouse.value.set(e.point.x, e.point.z);
     }
@@ -324,7 +332,7 @@ const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep }) => {
       position={[0, -1, 0]}
       onPointerMove={handlePointerMove}
     >
-      <planeGeometry args={[100, 100, 256, 256]} />
+      <planeGeometry args={[100, 200, 64, 64]} />
       <shaderMaterial
         ref={materialRef}
         vertexShader={vertexShader}
@@ -353,7 +361,8 @@ const Scene = ({
   cameraPosition,
   waterColor,
   waterColorMid,
-  waterColorDeep
+  waterColorDeep,
+  enableMouseInteraction
 }) => {
   const controlsRef = useRef();
 
@@ -390,7 +399,8 @@ const Scene = ({
       <WaterPlane 
         waterColor={waterColor} 
         waterColorMid={waterColorMid}
-        waterColorDeep={waterColorDeep} 
+        waterColorDeep={waterColorDeep}
+        enableMouseInteraction={enableMouseInteraction}
       />
       
       <OrbitControls 
@@ -415,7 +425,8 @@ export default function InfiniteGrid({
   cameraZ = 2,
   waterColor = '#9bd8ff',
   waterColorMid = '#4287f5',
-  waterColorDeep = '#186691'
+  waterColorDeep = '#186691',
+  enableMouseInteraction = true
 }) {
   return (
     <div className="infinite-grid-container">
@@ -427,6 +438,7 @@ export default function InfiniteGrid({
           waterColor={waterColor}
           waterColorMid={waterColorMid}
           waterColorDeep={waterColorDeep}
+          enableMouseInteraction={enableMouseInteraction}
         />
       </Canvas>
     </div>
@@ -441,5 +453,6 @@ InfiniteGrid.propTypes = {
   cameraZ: PropTypes.number,
   waterColor: PropTypes.string,
   waterColorMid: PropTypes.string,
-  waterColorDeep: PropTypes.string
+  waterColorDeep: PropTypes.string,
+  enableMouseInteraction: PropTypes.bool
 };
