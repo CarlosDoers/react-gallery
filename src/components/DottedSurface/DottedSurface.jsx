@@ -2,6 +2,8 @@ import { cn } from '../../lib/utils';
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { Reflector } from 'three/examples/jsm/objects/Reflector';
 import './DottedSurface.css';
 
 export default function DottedSurface({ 
@@ -14,23 +16,54 @@ export default function DottedSurface({
   gridSpacing = 150,
   gridSizeX = 40,
   gridSizeY = 60,
+  planeMetalness = 0.9,
+  planeRoughness = 0.1,
+  planeOpacity = 0.6,
+  modelScale = 150,
+  modelPositionX = 0,
+  modelPositionY = 200,
+  modelPositionZ = 0,
+  modelRotationSpeed = 0.01,
   // Filter out component-specific props
   imageSrc,
   depthMapSrc,
   xStrength,
   yStrength,
   backgroundSize,
+  text,
   ...props 
 }) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const animationRef = useRef({ count: 0, id: null });
   const wavePropsRef = useRef({ waveSpeed, waveAmplitude });
+  const planePropsRef = useRef({ planeMetalness, planeRoughness, planeOpacity });
+  const modelPropsRef = useRef({ modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed });
 
   // Update wave properties ref when they change
   useEffect(() => {
     wavePropsRef.current = { waveSpeed, waveAmplitude };
   }, [waveSpeed, waveAmplitude]);
+
+  // Update model properties ref when they change
+  useEffect(() => {
+    modelPropsRef.current = { modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed };
+    if (sceneRef.current?.model3D) {
+      sceneRef.current.model3D.scale.set(modelScale, modelScale, modelScale);
+      sceneRef.current.model3D.position.set(modelPositionX, modelPositionY, modelPositionZ);
+    }
+  }, [modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed]);
+
+  // Update plane properties when they change
+  useEffect(() => {
+    planePropsRef.current = { planeMetalness, planeRoughness, planeOpacity };
+    if (sceneRef.current?.reflectorMirror) {
+      // Update reflector material properties
+      sceneRef.current.reflectorMirror.material.opacity = planeOpacity;
+      sceneRef.current.reflectorMirror.material.transparent = planeOpacity < 1;
+      sceneRef.current.reflectorMirror.material.needsUpdate = true;
+    }
+  }, [planeMetalness, planeRoughness, planeOpacity]);
 
   // Setup scene once
   useEffect(() => {
@@ -115,20 +148,92 @@ export default function DottedSurface({
     );
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
-    // Create material
-    const material = new THREE.PointsMaterial({
-      size: particleSize,
-      vertexColors: true,
+    // Don't create points, we'll use the reflective plane instead
+    // const material = new THREE.PointsMaterial({
+    //   size: particleSize,
+    //   vertexColors: true,
+    //   transparent: true,
+    //   opacity: particleOpacity,
+    //   sizeAttenuation: true,
+    // });
+
+    // const points = new THREE.Points(geometry, material);
+    // scene.add(points);
+
+    // Create reflective plane using Reflector
+    const reflectorGeometry = new THREE.PlaneGeometry(
+      AMOUNTX * SEPARATION * 1.5,
+      AMOUNTY * SEPARATION * 1.5,
+      AMOUNTX * 2,
+      AMOUNTY * 2
+    );
+    
+    const reflectorMirror = new Reflector(reflectorGeometry, {
+      clipBias: 0.003,
+      textureWidth: window.innerWidth * window.devicePixelRatio,
+      textureHeight: window.innerHeight * window.devicePixelRatio,
+      color: new THREE.Color(particleColor),
       transparent: true,
-      opacity: particleOpacity,
-      sizeAttenuation: true,
+      opacity: planeOpacity,
     });
+    
+    reflectorMirror.rotation.x = -Math.PI / 2; // Horizontal
+    reflectorMirror.position.y = -100; // Below the duck
+    scene.add(reflectorMirror);
 
-    // Create points object
-    const points = new THREE.Points(geometry, material);
-    scene.add(points);
+    // Add lights for better reflections
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
 
-    console.log('Points added to scene, starting animation');
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight1.position.set(5, 10, 5);
+    scene.add(directionalLight1);
+
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight2.position.set(-5, 10, -5);
+    scene.add(directionalLight2);
+
+    // Load 3D model
+    const loader = new GLTFLoader();
+    let model3D = null;
+    
+    loader.load(
+      '/src/assets/duck.glb',
+      (gltf) => {
+        model3D = gltf.scene;
+        
+        // Scale and position the model
+        model3D.scale.set(modelScale, modelScale, modelScale);
+        model3D.position.set(modelPositionX, modelPositionY, modelPositionZ);
+        
+        // Make the model reflective
+        model3D.traverse((child) => {
+          if (child.isMesh) {
+            child.material = new THREE.MeshStandardMaterial({
+              color: child.material.color || 0xffffff,
+              metalness: 0.5,
+              roughness: 0.3,
+              emissive: new THREE.Color(0x444444),
+              emissiveIntensity: 0.3,
+            });
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        scene.add(model3D);
+        sceneRef.current.model3D = model3D;
+        console.log('3D model loaded and added to scene');
+      },
+      (progress) => {
+        console.log('Loading model:', (progress.loaded / progress.total * 100) + '%');
+      },
+      (error) => {
+        console.error('Error loading model:', error);
+      }
+    );
+
+    console.log('Reflective plane and model loader added to scene, starting animation');
 
     let isAnimating = true;
 
@@ -138,24 +243,26 @@ export default function DottedSurface({
       
       animationRef.current.id = requestAnimationFrame(animate);
 
-      const positionAttribute = geometry.attributes.position;
-      const positions = positionAttribute.array;
-
-      let i = 0;
-      for (let ix = 0; ix < AMOUNTX; ix++) {
-        for (let iy = 0; iy < AMOUNTY; iy++) {
-          const index = i * 3;
-
-          // Animate Y position with sine waves
-          positions[index + 1] =
-            Math.sin((ix + animationRef.current.count) * 0.3) * wavePropsRef.current.waveAmplitude +
-            Math.sin((iy + animationRef.current.count) * 0.5) * wavePropsRef.current.waveAmplitude;
-
-          i++;
-        }
+      // Rotate 3D model if loaded
+      if (sceneRef.current?.model3D) {
+        sceneRef.current.model3D.rotation.y += modelPropsRef.current.modelRotationSpeed;
       }
 
-      positionAttribute.needsUpdate = true;
+      // Animate reflective plane with waves
+      const reflectorPositions = reflectorGeometry.attributes.position.array;
+      const reflectorVertexCount = reflectorGeometry.attributes.position.count;
+      
+      for (let i = 0; i < reflectorVertexCount; i++) {
+        const x = reflectorPositions[i * 3];
+        const y = reflectorPositions[i * 3 + 1];
+        
+        reflectorPositions[i * 3 + 2] = 
+          Math.sin((x * 0.005 + animationRef.current.count) * 0.5) * wavePropsRef.current.waveAmplitude * 0.5 +
+          Math.sin((y * 0.005 + animationRef.current.count) * 0.3) * wavePropsRef.current.waveAmplitude * 0.5;
+      }
+      
+      reflectorGeometry.attributes.position.needsUpdate = true;
+      reflectorGeometry.computeVertexNormals();
 
       renderer.render(scene, camera);
       animationRef.current.count += wavePropsRef.current.waveSpeed;
@@ -180,8 +287,9 @@ export default function DottedSurface({
       camera,
       renderer,
       geometry,
-      material,
-      points,
+      reflectorMirror,
+      reflectorGeometry,
+      model3D: null, // Will be set when model loads
     };
 
     // Cleanup function
@@ -206,6 +314,14 @@ export default function DottedSurface({
               object.material.dispose();
             }
           }
+          if (object instanceof THREE.Mesh) {
+            object.geometry.dispose();
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
         });
 
         sceneRef.current.renderer.dispose();
@@ -221,7 +337,7 @@ export default function DottedSurface({
         sceneRef.current = null;
       }
     };
-  }, [gridSpacing, gridSizeX, gridSizeY, particleColor, particleSize, particleOpacity]);
+  }, [gridSpacing, gridSizeX, gridSizeY, particleColor, particleSize, particleOpacity, planeMetalness, planeRoughness, planeOpacity]);
 
   return (
     <div
@@ -229,10 +345,10 @@ export default function DottedSurface({
       className={cn('dotted-surface', className)}
       {...props}
     >
-      <div className="dotted-surface-content">
+      {/* <div className="dotted-surface-content">
         <div className="dotted-surface-gradient" />
         <h1 className="dotted-surface-title">Dotted Surface</h1>
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -247,10 +363,19 @@ DottedSurface.propTypes = {
   gridSpacing: PropTypes.number,
   gridSizeX: PropTypes.number,
   gridSizeY: PropTypes.number,
+  planeMetalness: PropTypes.number,
+  planeRoughness: PropTypes.number,
+  planeOpacity: PropTypes.number,
+  modelScale: PropTypes.number,
+  modelPositionX: PropTypes.number,
+  modelPositionY: PropTypes.number,
+  modelPositionZ: PropTypes.number,
+  modelRotationSpeed: PropTypes.number,
   // Props from other components that need to be filtered
   imageSrc: PropTypes.string,
   depthMapSrc: PropTypes.string,
   xStrength: PropTypes.number,
   yStrength: PropTypes.number,
   backgroundSize: PropTypes.string,
+  text: PropTypes.string,
 };

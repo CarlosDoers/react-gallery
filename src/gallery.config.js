@@ -222,17 +222,31 @@ export const components = [
       waveAmplitude: 50,
       gridSpacing: 150,
       gridSizeX: 40,
-      gridSizeY: 60
+      gridSizeY: 60,
+      planeMetalness: 0.9,
+      planeRoughness: 0.1,
+      planeOpacity: 0.6,
+      modelScale: 150,
+      modelPositionX: 0,
+      modelPositionY: 200,
+      modelPositionZ: 0,
+      modelRotationSpeed: 0.01
     },
     controls: [
-      { name: 'particleColor', label: 'Particle Color', type: 'color' },
-      { name: 'particleSize', label: 'Particle Size', type: 'range', min: 1, max: 20, step: 1 },
-      { name: 'particleOpacity', label: 'Particle Opacity', type: 'range', min: 0, max: 1, step: 0.1 },
+      { name: 'modelScale', label: 'Model Scale', type: 'range', min: 50, max: 500, step: 10 },
+      { name: 'modelPositionX', label: 'Model Position X', type: 'range', min: -500, max: 500, step: 10 },
+      { name: 'modelPositionY', label: 'Model Position Y', type: 'range', min: -200, max: 600, step: 10 },
+      { name: 'modelPositionZ', label: 'Model Position Z', type: 'range', min: -500, max: 500, step: 10 },
+      { name: 'modelRotationSpeed', label: 'Rotation Speed', type: 'range', min: 0, max: 0.1, step: 0.001 },
+      { name: 'particleColor', label: 'Surface Color', type: 'color' },
       { name: 'waveSpeed', label: 'Wave Speed', type: 'range', min: 0, max: 0.5, step: 0.01 },
       { name: 'waveAmplitude', label: 'Wave Amplitude', type: 'range', min: 10, max: 100, step: 5 },
       { name: 'gridSpacing', label: 'Grid Spacing', type: 'range', min: 50, max: 300, step: 10 },
       { name: 'gridSizeX', label: 'Grid Size X', type: 'range', min: 10, max: 60, step: 5 },
-      { name: 'gridSizeY', label: 'Grid Size Y', type: 'range', min: 10, max: 80, step: 5 }
+      { name: 'gridSizeY', label: 'Grid Size Y', type: 'range', min: 10, max: 80, step: 5 },
+      { name: 'planeMetalness', label: 'Reflectivity (Metalness)', type: 'range', min: 0, max: 1, step: 0.1 },
+      { name: 'planeRoughness', label: 'Surface Roughness', type: 'range', min: 0, max: 1, step: 0.1 },
+      { name: 'planeOpacity', label: 'Plane Opacity', type: 'range', min: 0, max: 1, step: 0.1 }
     ]
   }
 ];
