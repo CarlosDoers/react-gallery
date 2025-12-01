@@ -24,6 +24,7 @@ export default function DottedSurface({
   modelPositionY = 200,
   modelPositionZ = 0,
   modelRotationSpeed = 0.01,
+  backgroundImage = null, // URL to background image
   // Filter out component-specific props
   imageSrc,
   depthMapSrc,
@@ -50,7 +51,10 @@ export default function DottedSurface({
     modelPropsRef.current = { modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed };
     if (sceneRef.current?.model3D) {
       sceneRef.current.model3D.scale.set(modelScale, modelScale, modelScale);
-      sceneRef.current.model3D.position.set(modelPositionX, modelPositionY, modelPositionZ);
+      // Only update X and Z positions - Y is controlled by floating animation
+      sceneRef.current.model3D.position.x = modelPositionX;
+      sceneRef.current.model3D.position.z = modelPositionZ;
+      // Don't update position.y here as it's animated in the animate loop
     }
   }, [modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed]);
 
@@ -88,6 +92,29 @@ export default function DottedSurface({
     // Scene setup
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xffffff, 2000, 10000);
+    
+    // Add a background (image or color) so the reflector has something to reflect
+    if (backgroundImage) {
+      // Load background image
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(
+        backgroundImage,
+        (texture) => {
+          scene.background = texture;
+          console.log('Background image loaded successfully');
+        },
+        undefined,
+        (error) => {
+          console.error('Error loading background image:', error);
+          // Fallback to color if image fails to load
+          scene.background = new THREE.Color(0xe0e0e0);
+        }
+      );
+    } else {
+      // Use solid color background as default
+      const bgColor = new THREE.Color(0xe0e0e0); // Light gray
+      scene.background = bgColor;
+    }
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -98,12 +125,13 @@ export default function DottedSurface({
     camera.position.set(0, 355, 1220);
 
     const renderer = new THREE.WebGLRenderer({
-      alpha: true,
+      alpha: false, // Changed to false since we have a background now
       antialias: true,
     });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(scene.fog.color, 0);
+    // Don't clear the color since we have a background
+    // renderer.setClearColor(scene.fog.color, 0);
 
     // Important: append canvas to the container
     const canvas = renderer.domElement;
@@ -172,7 +200,7 @@ export default function DottedSurface({
       clipBias: 0.003,
       textureWidth: window.innerWidth * window.devicePixelRatio,
       textureHeight: window.innerHeight * window.devicePixelRatio,
-      color: new THREE.Color(particleColor),
+      color: new THREE.Color(0xcccccc), // Lighter gray color for better visibility
       transparent: true,
       opacity: planeOpacity,
     });
@@ -182,7 +210,7 @@ export default function DottedSurface({
     scene.add(reflectorMirror);
 
     // Add lights for better reflections
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Increased intensity
     scene.add(ambientLight);
 
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
@@ -243,9 +271,20 @@ export default function DottedSurface({
       
       animationRef.current.id = requestAnimationFrame(animate);
 
-      // Rotate 3D model if loaded
+      // Animate 3D model with floating and multi-axis rotation if loaded
       if (sceneRef.current?.model3D) {
-        sceneRef.current.model3D.rotation.y += modelPropsRef.current.modelRotationSpeed;
+        const model = sceneRef.current.model3D;
+        const time = animationRef.current.count;
+        
+        // Floating effect: smooth up and down movement
+        const floatAmplitude = 30; // How much it moves up and down
+        const floatSpeed = 0.5; // Speed of floating
+        const baseY = modelPropsRef.current.modelPositionY; // Original Y position
+        model.position.y = baseY + Math.sin(time * floatSpeed) * floatAmplitude;
+        
+        // Dual-axis rotation for more dynamic movement
+        model.rotation.x += modelPropsRef.current.modelRotationSpeed * 0.5; // Slower X rotation
+        model.rotation.y += modelPropsRef.current.modelRotationSpeed; // Original Y rotation
       }
 
       // Animate reflective plane with waves
@@ -337,7 +376,7 @@ export default function DottedSurface({
         sceneRef.current = null;
       }
     };
-  }, [gridSpacing, gridSizeX, gridSizeY, particleColor, particleSize, particleOpacity, planeMetalness, planeRoughness, planeOpacity]);
+  }, [gridSpacing, gridSizeX, gridSizeY, particleColor, particleSize, particleOpacity, planeMetalness, planeRoughness, planeOpacity, backgroundImage]);
 
   return (
     <div
@@ -371,6 +410,7 @@ DottedSurface.propTypes = {
   modelPositionY: PropTypes.number,
   modelPositionZ: PropTypes.number,
   modelRotationSpeed: PropTypes.number,
+  backgroundImage: PropTypes.string, // URL to background image
   // Props from other components that need to be filtered
   imageSrc: PropTypes.string,
   depthMapSrc: PropTypes.string,

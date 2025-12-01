@@ -230,9 +230,11 @@ export const components = [
       modelPositionX: 0,
       modelPositionY: 200,
       modelPositionZ: -900,
-      modelRotationSpeed: 0.01
+      modelRotationSpeed: 0.01,
+      backgroundImage: fake3dImg // Using fake3d.png as default background
     },
     controls: [
+      { name: 'backgroundImage', label: 'Background Image', type: 'text' },
       { name: 'modelScale', label: 'Model Scale', type: 'range', min: 50, max: 500, step: 10 },
       { name: 'modelPositionX', label: 'Model Position X', type: 'range', min: -500, max: 500, step: 10 },
       { name: 'modelPositionY', label: 'Model Position Y', type: 'range', min: -200, max: 600, step: 10 },
