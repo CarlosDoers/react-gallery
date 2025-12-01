@@ -1,0 +1,203 @@
+.holo-card-container {
+  perspective: 1000px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.holo-card {
+  width: 320px;
+  height: 480px;
+  position: relative;
+  border-radius: 20px;
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  overflow: visible; 
+  /* Subtle float animation when idle */
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+  50% { transform: translateY(-10px) rotateX(2deg) rotateY(2deg); }
+  100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+}
+
+.holo-card.hovering {
+  transition: none;
+  animation: none;
+}
+
+.holo-card-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.holo-card-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: translateZ(-1px);
+}
+
+/* 
+  HOLOFOIL EFFECT 
+  Simulates the prismatic reflection of a foil card.
+  Uses a repeating linear gradient with color-dodge/overlay blending.
+*/
+.holo-card-foil {
+  position: absolute;
+  inset: 0;
+  /* The foil gradient: a spectrum of colors */
+  background: linear-gradient(
+    115deg, 
+    transparent 20%, 
+    rgba(255, 0, 0, 0.4) 30%, 
+    rgba(255, 255, 0, 0.4) 40%, 
+    rgba(0, 255, 0, 0.4) 50%, 
+    rgba(0, 255, 255, 0.4) 60%, 
+    rgba(0, 0, 255, 0.4) 70%, 
+    rgba(255, 0, 255, 0.4) 80%, 
+    transparent 90%
+  );
+  /* Add a noise texture pattern if available, or just use the gradient */
+  mix-blend-mode: color-dodge;
+  opacity: 0; /* Hidden by default, reveals on hover/movement */
+  background-size: 300% 300%;
+  background-position: var(--mouse-x) var(--mouse-y);
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.3s ease;
+  filter: brightness(1.2) contrast(1.2);
+}
+
+.holo-card.hovering .holo-card-foil {
+  opacity: 0.7; /* Show the foil effect on hover */
+}
+
+/* Vertical sheen for metallic look */
+.holo-card-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.1) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-position: var(--mouse-x) 0; /* Moves horizontally with mouse */
+  mix-blend-mode: overlay;
+  opacity: 0;
+  z-index: 4;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.holo-card.hovering .holo-card-shine {
+  opacity: 0.5;
+}
+
+/* Glare spot */
+.holo-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mouse-x) var(--mouse-y),
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0) 40%
+  );
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  z-index: 5;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.holo-card.hovering .holo-card-overlay {
+  opacity: 0.6;
+}
+
+.holo-card-content {
+  position: absolute;
+  bottom: 2rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  padding: 1.5rem;
+  z-index: 6;
+  transform: translateZ(40px);
+  color: white;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.holo-default-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: linear-gradient(to right, #fff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.holo-default-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+/* Animated Border Glow */
+.holo-card::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 24px;
+  padding: 3px;
+  background: linear-gradient(
+    var(--rotate, 0deg), 
+    #ff0080, 
+    #00ffcc, 
+    #ff0080
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(12px);
+  animation: spin 4s linear infinite;
+}
+
+.holo-card.hovering::after {
+  opacity: 0.8;
+}
+
+@keyframes spin {
+  0% { --rotate: 0deg; }
+  100% { --rotate: 360deg; }
+}
+
+@property --rotate {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
