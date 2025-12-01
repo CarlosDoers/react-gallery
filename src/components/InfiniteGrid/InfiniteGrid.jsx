@@ -332,7 +332,7 @@ const WaterPlane = ({ waterColor, waterColorMid, waterColorDeep, enableMouseInte
       position={[0, -1, 0]}
       onPointerMove={handlePointerMove}
     >
-      <planeGeometry args={[100, 200, 64, 64]} />
+      <planeGeometry args={[200, 200, 48, 48]} />
       <shaderMaterial
         ref={materialRef}
         vertexShader={vertexShader}
