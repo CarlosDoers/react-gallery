@@ -45,6 +45,16 @@ export default function ReflectiveSurface({
   const targetTimeRef = useRef(0); // Target time set by scroll
   const animationActionsRef = useRef([]); // Store animation actions
   
+  // Mouse parallax references
+  const mouseRef = useRef({ x: 0, y: 0 }); // Current mouse position (lerped)
+  const targetMouseRef = useRef({ x: 0, y: 0 }); // Target mouse position
+  
+  // Model rotation drag references
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const modelRotationRef = useRef({ x: 0, y: 0 }); // User-controlled rotation
+  const targetRotationRef = useRef({ x: 0, y: 0 }); // Target rotation for smooth interpolation
+  
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
@@ -146,7 +156,8 @@ export default function ReflectiveSurface({
       
       const shaderUniforms = {
         time: { type: 'f', value: 1.0 },
-        resolution: { type: 'v2', value: new THREE.Vector2() }
+        resolution: { type: 'v2', value: new THREE.Vector2() },
+        mouse: { type: 'v2', value: new THREE.Vector2(0.0, 0.0) }
       };
       
       const vertexShader = `
@@ -162,9 +173,16 @@ export default function ReflectiveSurface({
         precision highp float;
         uniform vec2 resolution;
         uniform float time;
+        uniform vec2 mouse;
 
         void main(void) {
+          // Apply parallax offset based on mouse position
+          vec2 parallaxOffset = mouse * 0.15; // Adjust multiplier for intensity
           vec2 uv = (gl_FragCoord.xy * 2.0 - resolution.xy) / min(resolution.x, resolution.y);
+          
+          // Apply the parallax effect
+          uv += parallaxOffset;
+          
           float t = time*0.05;
           float lineWidth = 0.002;
 
@@ -209,6 +227,56 @@ export default function ReflectiveSurface({
       
       // Use the render target as background
       scene.background = renderTarget.texture;
+      
+      // Add mouse move listener for parallax effect and model rotation
+      const handleMouseMove = (event) => {
+        // Normalize mouse position to -1 to 1 range for parallax
+        targetMouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
+        targetMouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        
+        // Handle model rotation drag
+        if (isDraggingRef.current) {
+          const deltaX = event.clientX - dragStartRef.current.x;
+          const deltaY = event.clientY - dragStartRef.current.y;
+          
+          // Update target rotation based on drag distance
+          targetRotationRef.current.y = modelRotationRef.current.y + deltaX * 0.01;
+          targetRotationRef.current.x = modelRotationRef.current.x + deltaY * 0.01;
+          
+          // Clamp X rotation to prevent flipping
+          targetRotationRef.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationRef.current.x));
+        }
+      };
+      
+      const handleMouseDown = (event) => {
+        isDraggingRef.current = true;
+        dragStartRef.current = { x: event.clientX, y: event.clientY };
+        document.body.style.cursor = 'grabbing';
+      };
+      
+      const handleMouseUp = () => {
+        if (isDraggingRef.current) {
+          isDraggingRef.current = false;
+          // Reset rotation targets to return to original position
+          targetRotationRef.current.x = 0;
+          targetRotationRef.current.y = 0;
+          document.body.style.cursor = '';
+        }
+      };
+      
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mouseup', handleMouseUp);
+      
+      // Store cleanup function for mouse listeners
+      const originalCleanup = sceneRef.current?.cleanupScroll;
+      sceneRef.current = sceneRef.current || {};
+      sceneRef.current.cleanupMouse = () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = ''; // Reset cursor on cleanup
+      };
       
       console.log('Shader background initialized');
     } else if (backgroundType === 'image' && backgroundImage) {
@@ -326,17 +394,10 @@ export default function ReflectiveSurface({
     reflectorMirror.position.y = -100; // Below the duck
     scene.add(reflectorMirror);
 
-    // Add lights for better reflections
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Increased intensity
+    // We'll add lights after checking if the model has its own lights
+    // Initial basic lighting (will be adjusted after model loads)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
-
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight1.position.set(5, 10, 5);
-    scene.add(directionalLight1);
-
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight2.position.set(-5, 10, -5);
-    scene.add(directionalLight2);
 
     // Store references BEFORE loading model so the callback can access them
     sceneRef.current = {
@@ -347,6 +408,7 @@ export default function ReflectiveSurface({
       reflectorMirror,
       reflectorGeometry,
       model3D: null, // Will be set when model loads
+      ambientLight, // Store reference to adjust later
     };
 
     // Load 3D model
@@ -380,14 +442,62 @@ export default function ReflectiveSurface({
         model3D.position.y = modelPositionY - center.y * finalScale;
         model3D.position.z = modelPositionZ - center.z * finalScale;
         
-        // Make the model reflective
+        // Check if model has lights and extract them
+        let hasLights = false;
+        const modelLights = [];
+        
         model3D.traverse((child) => {
+          if (child.isLight) {
+            hasLights = true;
+            modelLights.push(child);
+            console.log(`Found light in model: ${child.type}, intensity: ${child.intensity}, color:`, child.color);
+          }
           if (child.isMesh) {
             // Keep original material but enable shadows
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
+        
+        // If model has lights, use them; otherwise, add our own enhanced lighting
+        if (hasLights) {
+          console.log(`Model has ${modelLights.length} light(s), using model's lighting`);
+          // Optionally boost the ambient light slightly
+          if (sceneRef.current.ambientLight) {
+            sceneRef.current.ambientLight.intensity = 0.3;
+          }
+        } else {
+          console.log('Model has no lights, adding custom lighting setup');
+          // Remove the weak ambient light and add better lighting
+          if (sceneRef.current.ambientLight) {
+            scene.remove(sceneRef.current.ambientLight);
+          }
+          
+          // Add enhanced lighting setup for vaporwave aesthetic
+          const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+          scene.add(ambientLight);
+          
+          // Key light (main light, bright and from above-front)
+          const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+          keyLight.position.set(5, 10, 5);
+          keyLight.castShadow = true;
+          scene.add(keyLight);
+          
+          // Fill light (softer, from the side)
+          const fillLight = new THREE.DirectionalLight(0xff66ff, 0.6); // Pink/magenta for vaporwave
+          fillLight.position.set(-5, 5, 0);
+          scene.add(fillLight);
+          
+          // Rim/Back light (from behind, cyan for vaporwave aesthetic)
+          const rimLight = new THREE.DirectionalLight(0x66ffff, 0.7); // Cyan
+          rimLight.position.set(0, 5, -5);
+          scene.add(rimLight);
+          
+          // Point light for additional highlights
+          const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+          pointLight.position.set(0, 10, 0);
+          scene.add(pointLight);
+        }
         
         scene.add(model3D);
         sceneRef.current.model3D = model3D;
@@ -466,6 +576,16 @@ export default function ReflectiveSurface({
       // Update shader background if active
       if (shaderSceneRef.current) {
         shaderSceneRef.current.uniforms.time.value += 0.05;
+        
+        // Smooth mouse parallax with lerp
+        const mouseLerpFactor = 0.1;
+        mouseRef.current.x += (targetMouseRef.current.x - mouseRef.current.x) * mouseLerpFactor;
+        mouseRef.current.y += (targetMouseRef.current.y - mouseRef.current.y) * mouseLerpFactor;
+        
+        // Update shader uniform with smoothed mouse position
+        shaderSceneRef.current.uniforms.mouse.value.x = mouseRef.current.x;
+        shaderSceneRef.current.uniforms.mouse.value.y = mouseRef.current.y;
+        
         renderer.setRenderTarget(shaderSceneRef.current.renderTarget);
         renderer.render(shaderSceneRef.current.scene, shaderSceneRef.current.camera);
         renderer.setRenderTarget(null);
@@ -510,14 +630,19 @@ export default function ReflectiveSurface({
         const baseY = modelPropsRef.current.modelPositionY - offsetY; // Adjusted Y position
         model.position.y = baseY + Math.sin(time * floatSpeed) * floatAmplitude;
         
-        // Dual-axis rotation for more dynamic movement
-        // model.rotation.x += modelPropsRef.current.modelRotationSpeed * 0.5; // Removed X rotation
+        // Apply user-controlled rotation with smooth interpolation
+        const rotationLerpFactor = 0.1;
+        modelRotationRef.current.x += (targetRotationRef.current.x - modelRotationRef.current.x) * rotationLerpFactor;
+        modelRotationRef.current.y += (targetRotationRef.current.y - modelRotationRef.current.y) * rotationLerpFactor;
         
-        // Oscillating Y rotation (30 degrees back and forth)
+        // Always use the original 30-degree oscillation
         const oscillationAmplitude = 30 * (Math.PI / 180); // 30 degrees in radians
-        // Multiply speed by 20 to match the "energy" of the previous continuous rotation
-        const oscillationSpeed = modelPropsRef.current.modelRotationSpeed * 20; 
-        model.rotation.y = Math.sin(time * oscillationSpeed) * oscillationAmplitude;
+        const oscillationSpeed = modelPropsRef.current.modelRotationSpeed * 20;
+        const baseOscillation = Math.sin(time * oscillationSpeed) * oscillationAmplitude;
+        
+        // Apply the oscillation plus any user drag rotation
+        model.rotation.y = baseOscillation + modelRotationRef.current.y;
+        model.rotation.x = modelRotationRef.current.x;
       }
 
       // Animate reflective plane with waves
@@ -567,6 +692,11 @@ export default function ReflectiveSurface({
       // Clean up scroll event listener
       if (sceneRef.current?.cleanupScroll) {
         sceneRef.current.cleanupScroll();
+      }
+
+      // Clean up mouse event listener
+      if (sceneRef.current?.cleanupMouse) {
+        sceneRef.current.cleanupMouse();
       }
 
       // Clean up shader scene if it exists
