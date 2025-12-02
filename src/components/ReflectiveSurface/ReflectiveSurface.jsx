@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Reflector } from 'three/examples/jsm/objects/Reflector';
+import { MODELS } from '../../config/assets';
 import './ReflectiveSurface.css';
 
 export default function ReflectiveSurface({ 
@@ -416,7 +417,7 @@ export default function ReflectiveSurface({
     let model3D = null;
     
     loader.load(
-      '/models/butterfly1.glb',
+      MODELS.butterfly,
       (gltf) => {
         model3D = gltf.scene;
         
