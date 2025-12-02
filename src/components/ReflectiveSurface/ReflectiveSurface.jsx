@@ -357,13 +357,7 @@ export default function ReflectiveSurface({
         // Make the model reflective
         model3D.traverse((child) => {
           if (child.isMesh) {
-            child.material = new THREE.MeshStandardMaterial({
-              color: child.material.color || 0xffffff,
-              metalness: 0.5,
-              roughness: 0.3,
-              emissive: new THREE.Color(0x444444),
-              emissiveIntensity: 0.3,
-            });
+            // Keep original material but enable shadows
             child.castShadow = true;
             child.receiveShadow = true;
           }
