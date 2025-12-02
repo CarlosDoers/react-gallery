@@ -8,7 +8,7 @@ import Waves from './components/Waves/Waves';
 import Fake3DImage from './components/Fake3DImage/Fake3DImage';
 import InfiniteGrid from './components/InfiniteGrid/InfiniteGrid';
 import ScrollExpandMedia from './components/ScrollExpandMedia/ScrollExpandMedia';
-import DottedSurface from './components/DottedSurface/DottedSurface';
+import ReflectiveSurface from './components/ReflectiveSurface/ReflectiveSurface';
 
 import cyberpunkImg4 from './assets/cyberpunk4.png';
 import fake3dImg from './assets/fake3d.png';
@@ -211,43 +211,39 @@ export const components = [
     ]
   },
   {
-    id: 'dotted-surface',
-    name: 'Dotted Surface',
-    component: DottedSurface,
+    id: 'reflective-surface',
+    name: 'Reflective Surface',
+    component: ReflectiveSurface,
     defaultProps: {
-      particleColor: '#c8c8c8',
-      particleSize: 8,
-      particleOpacity: 0.8,
+      surfaceColor: '#c8c8c8',
       waveSpeed: 0.1,
       waveAmplitude: 50,
       gridSpacing: 150,
       gridSizeX: 40,
       gridSizeY: 60,
-      planeMetalness: 0.9,
-      planeRoughness: 0.1,
       planeOpacity: 0.6,
       modelScale: 90,
       modelPositionX: 0,
       modelPositionY: 200,
       modelPositionZ: -900,
       modelRotationSpeed: 0.01,
-      backgroundImage: fake3dImg // Using fake3d.png as default background
+      backgroundType: 'shader',
+      backgroundImage: fake3dImg
     },
     controls: [
-      { name: 'backgroundImage', label: 'Background Image', type: 'text' },
+      { name: 'backgroundType', label: 'Background Type', type: 'select', options: ['color', 'image', 'shader'] },
+      { name: 'backgroundImage', label: 'Background Image (for image type)', type: 'text' },
       { name: 'modelScale', label: 'Model Scale', type: 'range', min: 50, max: 500, step: 10 },
       { name: 'modelPositionX', label: 'Model Position X', type: 'range', min: -500, max: 500, step: 10 },
       { name: 'modelPositionY', label: 'Model Position Y', type: 'range', min: -200, max: 600, step: 10 },
       { name: 'modelPositionZ', label: 'Model Position Z', type: 'range', min: -900, max: 500, step: 10 },
       { name: 'modelRotationSpeed', label: 'Rotation Speed', type: 'range', min: 0, max: 0.1, step: 0.001 },
-      { name: 'particleColor', label: 'Surface Color', type: 'color' },
+      { name: 'surfaceColor', label: 'Surface Color', type: 'color' },
       { name: 'waveSpeed', label: 'Wave Speed', type: 'range', min: 0, max: 0.5, step: 0.01 },
       { name: 'waveAmplitude', label: 'Wave Amplitude', type: 'range', min: 10, max: 100, step: 5 },
       { name: 'gridSpacing', label: 'Grid Spacing', type: 'range', min: 50, max: 300, step: 10 },
       { name: 'gridSizeX', label: 'Grid Size X', type: 'range', min: 10, max: 60, step: 5 },
       { name: 'gridSizeY', label: 'Grid Size Y', type: 'range', min: 10, max: 80, step: 5 },
-      { name: 'planeMetalness', label: 'Reflectivity (Metalness)', type: 'range', min: 0, max: 1, step: 0.1 },
-      { name: 'planeRoughness', label: 'Surface Roughness', type: 'range', min: 0, max: 1, step: 0.1 },
       { name: 'planeOpacity', label: 'Plane Opacity', type: 'range', min: 0, max: 1, step: 0.1 }
     ]
   }
