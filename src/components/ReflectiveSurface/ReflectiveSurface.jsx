@@ -15,7 +15,7 @@ export default function ReflectiveSurface({
   gridSizeX = 40,
   gridSizeY = 60,
   planeOpacity = 0.6,
-  modelScale = 150,
+  modelScale = 100,
   modelPositionX = 0,
   modelPositionY = 200,
   modelPositionZ = 0,
@@ -57,10 +57,21 @@ export default function ReflectiveSurface({
   useEffect(() => {
     modelPropsRef.current = { modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed };
     if (sceneRef.current?.model3D) {
-      sceneRef.current.model3D.scale.set(modelScale, modelScale, modelScale);
+      const model = sceneRef.current.model3D;
+      const normScale = model.userData.normalizationScale || 1;
+      // 50 is the multiplier we established in the loader
+      const finalScale = modelScale * normScale * 50;
+      
+      model.scale.set(finalScale, finalScale, finalScale);
+      
+      // Calculate offsets based on current scale
+      const center = model.userData.originalCenter || new THREE.Vector3(0, 0, 0);
+      const offsetX = center.x * finalScale;
+      const offsetZ = center.z * finalScale;
+      
       // Only update X and Z positions - Y is controlled by floating animation
-      sceneRef.current.model3D.position.x = modelPositionX;
-      sceneRef.current.model3D.position.z = modelPositionZ;
+      model.position.x = modelPositionX - offsetX;
+      model.position.z = modelPositionZ - offsetZ;
       // Don't update position.y here as it's animated in the animate loop
     }
   }, [modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed]);
@@ -343,16 +354,31 @@ export default function ReflectiveSurface({
     let model3D = null;
     
     loader.load(
-      '/src/assets/flower.glb',
+      '/src/assets/butterfly1.glb',
       (gltf) => {
         model3D = gltf.scene;
         
-        // Scale and position the model
-        model3D.scale.set(modelScale, modelScale, modelScale);
-        // Only set X and Z - Y will be controlled by floating animation
-        model3D.position.x = modelPositionX;
-        model3D.position.y = modelPositionY; // Set initial Y position
-        model3D.position.z = modelPositionZ;
+        // Compute bounding box to normalize scale and position
+        const box = new THREE.Box3().setFromObject(model3D);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        
+        // Calculate scale to normalize to unit size, then apply user scale
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const normalizationScale = 1 / maxDim;
+        const finalScale = modelScale * normalizationScale * 50; // Multiplier to match previous scale expectations
+        
+        // Store normalization data for updates
+        model3D.userData.originalCenter = center;
+        model3D.userData.normalizationScale = normalizationScale;
+        
+        model3D.scale.set(finalScale, finalScale, finalScale);
+        
+        // Center the model visually
+        // We subtract the scaled center offset to align the visual center with the target position
+        model3D.position.x = modelPositionX - center.x * finalScale;
+        model3D.position.y = modelPositionY - center.y * finalScale;
+        model3D.position.z = modelPositionZ - center.z * finalScale;
         
         // Make the model reflective
         model3D.traverse((child) => {
@@ -472,14 +498,26 @@ export default function ReflectiveSurface({
         const time = animationRef.current.count;
         
         // Floating effect: smooth up and down movement
-        const floatAmplitude = 80; // How much it moves up and down (increased for visibility)
-        const floatSpeed = 0.5; // Speed of floating
-        const baseY = modelPropsRef.current.modelPositionY; // Original Y position
+        const floatAmplitude = 70; // How much it moves up and down (increased for visibility)
+        const floatSpeed = 0.4; // Speed of floating
+        
+        // Calculate current Y offset based on scale
+        const normScale = model.userData.normalizationScale || 1;
+        const currentScale = modelPropsRef.current.modelScale * normScale * 50;
+        const center = model.userData.originalCenter || new THREE.Vector3(0, 0, 0);
+        const offsetY = center.y * currentScale;
+        
+        const baseY = modelPropsRef.current.modelPositionY - offsetY; // Adjusted Y position
         model.position.y = baseY + Math.sin(time * floatSpeed) * floatAmplitude;
         
         // Dual-axis rotation for more dynamic movement
-        model.rotation.x += modelPropsRef.current.modelRotationSpeed * 0.5; // Slower X rotation
-        model.rotation.y += modelPropsRef.current.modelRotationSpeed; // Original Y rotation
+        // model.rotation.x += modelPropsRef.current.modelRotationSpeed * 0.5; // Removed X rotation
+        
+        // Oscillating Y rotation (30 degrees back and forth)
+        const oscillationAmplitude = 30 * (Math.PI / 180); // 30 degrees in radians
+        // Multiply speed by 20 to match the "energy" of the previous continuous rotation
+        const oscillationSpeed = modelPropsRef.current.modelRotationSpeed * 20; 
+        model.rotation.y = Math.sin(time * oscillationSpeed) * oscillationAmplitude;
       }
 
       // Animate reflective plane with waves

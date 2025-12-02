@@ -9,8 +9,6 @@ import Fake3DImage from './components/Fake3DImage/Fake3DImage';
 import InfiniteGrid from './components/InfiniteGrid/InfiniteGrid';
 import ScrollExpandMedia from './components/ScrollExpandMedia/ScrollExpandMedia';
 import ReflectiveSurface from './components/ReflectiveSurface/ReflectiveSurface';
-
-import cyberpunkImg4 from './assets/cyberpunk4.png';
 import fake3dImg from './assets/fake3d.png';
 import fake3dMapImg from './assets/fake3dmap.png';
 import card1Img from './assets/card1.png';
@@ -222,7 +220,7 @@ export const components = [
       gridSizeX: 40,
       gridSizeY: 60,
       planeOpacity: 0.6,
-      modelScale: 90,
+      modelScale: 20,
       modelPositionX: 0,
       modelPositionY: 200,
       modelPositionZ: -900,
@@ -234,10 +232,10 @@ export const components = [
     controls: [
       { name: 'backgroundType', label: 'Background Type', type: 'select', options: ['color', 'image', 'shader'] },
       { name: 'backgroundImage', label: 'Background Image (for image type)', type: 'text' },
-      { name: 'modelScale', label: 'Model Scale', type: 'range', min: 50, max: 500, step: 10 },
+      { name: 'modelScale', label: 'Model Scale', type: 'range', min: 10, max: 500, step: 10 },
       { name: 'modelPositionX', label: 'Model Position X', type: 'range', min: -500, max: 500, step: 10 },
       { name: 'modelPositionY', label: 'Model Position Y', type: 'range', min: -1000, max: 1000, step: 10 },
-      { name: 'modelPositionZ', label: 'Model Position Z', type: 'range', min: -2000, max: 1000, step: 10 },
+      { name: 'modelPositionZ', label: 'Model Position Z', type: 'range', min: -3000, max: 1000, step: 10 },
       { name: 'modelRotationSpeed', label: 'Rotation Speed', type: 'range', min: 0, max: 0.1, step: 0.001 },
       { name: 'animationSpeed', label: 'Animation Speed', type: 'range', min: 0.1, max: 2, step: 0.1 },
       { name: 'surfaceColor', label: 'Surface Color', type: 'color' },
