@@ -416,7 +416,7 @@ export default function ReflectiveSurface({
     let model3D = null;
     
     loader.load(
-      '/src/assets/butterfly1.glb',
+      '/models/butterfly1.glb',
       (gltf) => {
         model3D = gltf.scene;
         

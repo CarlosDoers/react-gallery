@@ -12,11 +12,13 @@ dist
 dist-ssr
 *.local
 
-# Large 3D model files (exclude by default)
+# Large 3D model files in src/assets (exclude by default)
 src/assets/*.glb
 
-# Include only used models
+# Include only used models in src/assets
 !src/assets/butterfly1.glb
+
+# Note: Models in public/models/ are NOT ignored and will be deployed
 
 # Editor directories and files
 .vscode/*
