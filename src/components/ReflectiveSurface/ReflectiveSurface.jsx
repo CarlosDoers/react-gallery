@@ -1,5 +1,5 @@
 import { cn } from '../../lib/utils';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -20,6 +20,7 @@ export default function ReflectiveSurface({
   modelPositionY = 200,
   modelPositionZ = 0,
   modelRotationSpeed = 0.01,
+  animationSpeed = 0.5, // Speed multiplier for GLTF animations
   backgroundType = 'color', // 'color', 'image', or 'shader'
   backgroundImage = null, // URL to background image
   // Filter out component-specific props
@@ -37,6 +38,15 @@ export default function ReflectiveSurface({
   const wavePropsRef = useRef({ waveSpeed, waveAmplitude });
   const shaderSceneRef = useRef(null);
   const modelPropsRef = useRef({ modelScale, modelPositionX, modelPositionY, modelPositionZ, modelRotationSpeed });
+  const mixerRef = useRef(null); // AnimationMixer for GLTF animations
+  const clockRef = useRef(new THREE.Clock()); // Clock for animation timing
+  const animationSpeedRef = useRef(animationSpeed);
+  const currentTimeRef = useRef(0); // Actual interpolated time applied to animation
+  const targetTimeRef = useRef(0); // Target time set by scroll
+  const animationActionsRef = useRef([]); // Store animation actions
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Update wave properties ref when they change
   useEffect(() => {
@@ -64,6 +74,14 @@ export default function ReflectiveSurface({
     }
   }, [planeOpacity]);
 
+  // Update animation speed when it changes
+  useEffect(() => {
+    animationSpeedRef.current = animationSpeed;
+    if (mixerRef.current) {
+      mixerRef.current.timeScale = animationSpeed;
+    }
+  }, [animationSpeed]);
+
   // Setup scene once
   useEffect(() => {
     if (!containerRef.current) return;
@@ -83,6 +101,24 @@ export default function ReflectiveSurface({
     const SEPARATION = gridSpacing;
     const AMOUNTX = gridSizeX;
     const AMOUNTY = gridSizeY;
+
+    // Create Loading Manager
+    const manager = new THREE.LoadingManager();
+    
+    manager.onProgress = (url, itemsLoaded, itemsTotal) => {
+      const progress = (itemsLoaded / itemsTotal) * 100;
+      setLoadingProgress(progress);
+      console.log(`Loading file: ${url}.\nLoaded ${itemsLoaded} of ${itemsTotal} files.`);
+    };
+
+    manager.onLoad = () => {
+      console.log('Loading complete!');
+      setIsLoading(false);
+    };
+
+    manager.onError = (url) => {
+      console.log('There was an error loading ' + url);
+    };
 
     // Scene setup
     const scene = new THREE.Scene();
@@ -166,7 +202,7 @@ export default function ReflectiveSurface({
       console.log('Shader background initialized');
     } else if (backgroundType === 'image' && backgroundImage) {
       // Load background image
-      const textureLoader = new THREE.TextureLoader();
+      const textureLoader = new THREE.TextureLoader(manager);
       textureLoader.load(
         backgroundImage,
         (texture) => {
@@ -303,7 +339,7 @@ export default function ReflectiveSurface({
     };
 
     // Load 3D model
-    const loader = new GLTFLoader();
+    const loader = new GLTFLoader(manager);
     let model3D = null;
     
     loader.load(
@@ -335,6 +371,58 @@ export default function ReflectiveSurface({
         
         scene.add(model3D);
         sceneRef.current.model3D = model3D;
+        
+        // Check if the model has animations
+        if (gltf.animations && gltf.animations.length > 0) {
+          console.log(`Found ${gltf.animations.length} animation(s) in the model`);
+          
+          // Create AnimationMixer
+          const mixer = new THREE.AnimationMixer(model3D);
+          mixer.timeScale = 0; // Pause by default - scroll will control time
+          mixerRef.current = mixer;
+          
+          // Store animation actions for scroll control
+          const actions = [];
+          
+          // Play all animations but paused (we'll control time manually)
+          gltf.animations.forEach((clip, index) => {
+            const action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat);
+            action.clampWhenFinished = false;
+            action.paused = false; // Not paused, but timeScale is 0
+            action.play();
+            actions.push({ action, duration: clip.duration });
+            console.log(`Loaded animation ${index + 1}: ${clip.name || 'Unnamed'}, duration: ${clip.duration.toFixed(2)}s`);
+          });
+          
+          animationActionsRef.current = actions;
+          
+          // Add scroll event listener to control animation timeline
+          const handleScroll = (event) => {
+            // event.preventDefault(); // Optional: uncomment if you want to block page scroll
+            
+            if (actions.length > 0) {
+              // Update target time based on wheel delta
+              // Normalize deltaY and multiply by speed factor
+              const scrollDelta = event.deltaY * animationSpeedRef.current * 0.001;
+              targetTimeRef.current += scrollDelta;
+              
+              // We don't clamp or loop here anymore. We let targetTime accumulate infinitely
+              // and handle the looping via modulo in the render loop. This prevents jumps.
+            }
+          };
+          
+          // Add wheel event listener to window for better capture
+          window.addEventListener('wheel', handleScroll, { passive: false });
+          
+          // Store cleanup function
+          sceneRef.current.cleanupScroll = () => {
+            window.removeEventListener('wheel', handleScroll);
+          };
+        } else {
+          console.log('No animations found in the model');
+        }
+        
         console.log('3D model loaded and added to scene');
       },
       (progress) => {
@@ -363,7 +451,28 @@ export default function ReflectiveSurface({
         renderer.setRenderTarget(null);
       }
 
-      // Animate 3D model with floating and multi-axis rotation if loaded
+      // Update GLTF animations with Lerp for smoothness
+      if (mixerRef.current && animationActionsRef.current.length > 0) {
+        // Lerp factor - lower = smoother/slower, higher = more responsive
+        const lerpFactor = 0.08; 
+        
+        // Smoothly interpolate current time towards target time
+        currentTimeRef.current += (targetTimeRef.current - currentTimeRef.current) * lerpFactor;
+        
+        const maxDuration = animationActionsRef.current[0].duration;
+        
+        // Calculate looped time using modulo
+        // We add maxDuration before modulo to handle negative numbers correctly
+        let loopedTime = currentTimeRef.current % maxDuration;
+        if (loopedTime < 0) loopedTime += maxDuration;
+        
+        // Apply smooth time to all actions
+        animationActionsRef.current.forEach(({ action }) => {
+          action.time = loopedTime;
+        });
+        
+        mixerRef.current.update(0);
+      }
       if (sceneRef.current?.model3D) {
         const model = sceneRef.current.model3D;
         const time = animationRef.current.count;
@@ -423,6 +532,11 @@ export default function ReflectiveSurface({
         animationRef.current.id = null;
       }
 
+      // Clean up scroll event listener
+      if (sceneRef.current?.cleanupScroll) {
+        sceneRef.current.cleanupScroll();
+      }
+
       // Clean up shader scene if it exists
       if (shaderSceneRef.current) {
         shaderSceneRef.current.geometry.dispose();
@@ -468,11 +582,19 @@ export default function ReflectiveSurface({
   }, [gridSpacing, gridSizeX, gridSizeY, surfaceColor, planeOpacity, backgroundType, backgroundImage]);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn('reflective-surface', className)}
-      {...props}
-    />
+    <>
+      {isLoading && (
+        <div className="reflective-surface-loader">
+          <div className="reflective-surface-spinner"></div>
+          <div className="reflective-surface-progress">{Math.round(loadingProgress)}%</div>
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        className={cn('reflective-surface', className)}
+        {...props}
+      />
+    </>
   );
 }
 
@@ -490,6 +612,7 @@ ReflectiveSurface.propTypes = {
   modelPositionY: PropTypes.number,
   modelPositionZ: PropTypes.number,
   modelRotationSpeed: PropTypes.number,
+  animationSpeed: PropTypes.number,
   backgroundType: PropTypes.oneOf(['color', 'image', 'shader']),
   backgroundImage: PropTypes.string, // URL to background image
   // Props from other components that need to be filtered

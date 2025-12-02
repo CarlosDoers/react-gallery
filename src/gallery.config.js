@@ -227,6 +227,7 @@ export const components = [
       modelPositionY: 200,
       modelPositionZ: -900,
       modelRotationSpeed: 0.01,
+      animationSpeed: 0.5,
       backgroundType: 'shader',
       backgroundImage: fake3dImg
     },
@@ -238,6 +239,7 @@ export const components = [
       { name: 'modelPositionY', label: 'Model Position Y', type: 'range', min: -200, max: 600, step: 10 },
       { name: 'modelPositionZ', label: 'Model Position Z', type: 'range', min: -900, max: 500, step: 10 },
       { name: 'modelRotationSpeed', label: 'Rotation Speed', type: 'range', min: 0, max: 0.1, step: 0.001 },
+      { name: 'animationSpeed', label: 'Animation Speed', type: 'range', min: 0.1, max: 2, step: 0.1 },
       { name: 'surfaceColor', label: 'Surface Color', type: 'color' },
       { name: 'waveSpeed', label: 'Wave Speed', type: 'range', min: 0, max: 0.5, step: 0.01 },
       { name: 'waveAmplitude', label: 'Wave Amplitude', type: 'range', min: 10, max: 100, step: 5 },
