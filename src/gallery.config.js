@@ -9,6 +9,7 @@ import Fake3DImage from './components/Fake3DImage/Fake3DImage';
 import InfiniteGrid from './components/InfiniteGrid/InfiniteGrid';
 import ScrollExpandMedia from './components/ScrollExpandMedia/ScrollExpandMedia';
 import ReflectiveSurface from './components/ReflectiveSurface/ReflectiveSurface';
+import Model3DViewer from './components/Model3DViewer/Model3DViewer';
 import fake3dImg from './assets/fake3d.png';
 import fake3dMapImg from './assets/fake3dmap.png';
 import card1Img from './assets/card1.png';
@@ -245,6 +246,43 @@ export const components = [
       { name: 'gridSizeX', label: 'Grid Size X', type: 'range', min: 10, max: 60, step: 5 },
       { name: 'gridSizeY', label: 'Grid Size Y', type: 'range', min: 10, max: 80, step: 5 },
       { name: 'planeOpacity', label: 'Plane Opacity', type: 'range', min: 0, max: 1, step: 0.1 }
+    ]
+  },
+  {
+    id: 'model-3d-viewer',
+    name: '3D Model Viewer',
+    component: Model3DViewer,
+    defaultProps: {
+      modelPath: '/models/isla.glb',
+      backgroundColor: '#1a1a2e',
+      autoRotate: false,
+      rotationSpeed: 0.5,
+      scale: 1,
+      enableZoom: true,
+      enablePan: false,
+      ambientIntensity: 0.5,
+      showEnvironment: true,
+      environmentPreset: 'sunset',
+      showHotspots: true,
+      showLabels: true,
+      defaultTransition: 'smooth',
+      introAnimation: true
+    },
+    controls: [
+      { name: 'introAnimation', label: 'Intro Animation', type: 'checkbox' },
+      { name: 'modelPath', label: 'Model Path', type: 'text' },
+      { name: 'backgroundColor', label: 'Background Color', type: 'color' },
+      { name: 'autoRotate', label: 'Auto Rotate', type: 'checkbox' },
+      { name: 'rotationSpeed', label: 'Rotation Speed', type: 'range', min: 0, max: 2, step: 0.1 },
+      { name: 'scale', label: 'Scale', type: 'range', min: 0.1, max: 5, step: 0.1 },
+      { name: 'enableZoom', label: 'Enable Zoom', type: 'checkbox' },
+      { name: 'enablePan', label: 'Enable Pan', type: 'checkbox' },
+      { name: 'ambientIntensity', label: 'Ambient Light', type: 'range', min: 0, max: 2, step: 0.1 },
+      { name: 'showEnvironment', label: 'Show Environment', type: 'checkbox' },
+      { name: 'environmentPreset', label: 'Environment', type: 'select', options: ['sunset', 'dawn', 'night', 'warehouse', 'forest', 'apartment', 'studio', 'city', 'park', 'lobby'] },
+      { name: 'showHotspots', label: 'Show Hotspots', type: 'checkbox' },
+      { name: 'showLabels', label: 'Show Labels', type: 'checkbox' },
+      { name: 'defaultTransition', label: 'Camera Transition', type: 'select', options: ['smooth', 'linear', 'bounce', 'elastic', 'zoomPull', 'arc', 'spiral'] }
     ]
   }
 ];
