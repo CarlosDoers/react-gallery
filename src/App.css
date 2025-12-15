@@ -143,6 +143,8 @@ body {
   z-index: 20;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
 }
 
 .customization-panel h3 {

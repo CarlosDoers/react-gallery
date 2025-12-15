@@ -266,7 +266,12 @@ export const components = [
       showHotspots: true,
       showLabels: true,
       defaultTransition: 'smooth',
-      introAnimation: true
+      introAnimation: true,
+      showDebugHotspot: false,
+      debugHotspotColor: '#ffff00',
+      debugHotspotX: 0,
+      debugHotspotY: 1,
+      debugHotspotZ: 0
     },
     controls: [
       { name: 'introAnimation', label: 'Intro Animation', type: 'checkbox' },
@@ -282,7 +287,12 @@ export const components = [
       { name: 'environmentPreset', label: 'Environment', type: 'select', options: ['sunset', 'dawn', 'night', 'warehouse', 'forest', 'apartment', 'studio', 'city', 'park', 'lobby'] },
       { name: 'showHotspots', label: 'Show Hotspots', type: 'checkbox' },
       { name: 'showLabels', label: 'Show Labels', type: 'checkbox' },
-      { name: 'defaultTransition', label: 'Camera Transition', type: 'select', options: ['smooth', 'linear', 'bounce', 'elastic', 'zoomPull', 'arc', 'spiral'] }
+      { name: 'defaultTransition', label: 'Camera Transition', type: 'select', options: ['smooth', 'linear', 'bounce', 'elastic', 'zoomPull', 'arc', 'spiral'] },
+      { name: 'showDebugHotspot', label: 'Show Debug Hotspot', type: 'checkbox' },
+      { name: 'debugHotspotColor', label: 'Debug Hotspot Color', type: 'color' },
+      { name: 'debugHotspotX', label: 'Debug X', type: 'range', min: -10, max: 10, step: 0.1 },
+      { name: 'debugHotspotY', label: 'Debug Y', type: 'range', min: -10, max: 10, step: 0.1 },
+      { name: 'debugHotspotZ', label: 'Debug Z', type: 'range', min: -10, max: 10, step: 0.1 }
     ]
   }
 ];

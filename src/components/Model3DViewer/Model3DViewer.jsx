@@ -72,9 +72,9 @@ const DEFAULT_HOTSPOTS = [
     {
         id: 'barco',
         label: 'Barco',
-        position: [1.5, 0.5, 0.5],
-        cameraTarget: [1.5, 0.3, 0.5],
-        cameraPosition: [2.5, 1, 2],
+        position: [-1.1, -0.3, -1.6],
+        cameraTarget: [-1.6, -0.3, -2.7],
+        cameraPosition: [-4.1, 1.3, -6.6],
         transition: 'smooth' // Tipo de transición
     },
     {
@@ -252,6 +252,45 @@ Hotspot.propTypes = {
     onClick: PropTypes.func.isRequired,
     isActive: PropTypes.bool,
     showLabels: PropTypes.bool
+};
+
+function DebugHotspot({ position, color }) {
+    const meshRef = useRef();
+    
+    useFrame((state) => {
+        if (meshRef.current) {
+            const scale = 1 + Math.sin(state.clock.elapsedTime * 5) * 0.2;
+            meshRef.current.scale.setScalar(scale);
+        }
+    });
+
+    return (
+        <group position={position}>
+            <mesh ref={meshRef}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.8} />
+            </mesh>
+            <Html position={[0, 0.25, 0]} center>
+                <div style={{ 
+                    background: 'rgba(0,0,0,0.8)', 
+                    color: color, 
+                    padding: '4px 8px', 
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'nowrap',
+                    border: `1px solid ${color}`
+                }}>
+                    {`[${position[0].toFixed(2)}, ${position[1].toFixed(2)}, ${position[2].toFixed(2)}]`}
+                </div>
+            </Html>
+        </group>
+    );
+}
+
+DebugHotspot.propTypes = {
+    position: PropTypes.arrayOf(PropTypes.number).isRequired,
+    color: PropTypes.string.isRequired
 };
 
 function CameraController({
@@ -447,7 +486,10 @@ function Scene({
     onAnimationComplete,
     controlsRef,
     transitionType,
-    introAnimation
+    introAnimation,
+    showDebugHotspot,
+    debugHotspotColor,
+    debugHotspotPosition
 }) {
     return (
         <>
@@ -476,6 +518,13 @@ function Scene({
                         showLabels={showLabels}
                     />
                 ))}
+
+                {showDebugHotspot && (
+                    <DebugHotspot 
+                        position={debugHotspotPosition} 
+                        color={debugHotspotColor} 
+                    />
+                )}
             </Suspense>
 
             <CameraController
@@ -521,7 +570,10 @@ Scene.propTypes = {
     onAnimationComplete: PropTypes.func,
     controlsRef: PropTypes.object,
     transitionType: PropTypes.string,
-    introAnimation: PropTypes.bool
+    introAnimation: PropTypes.bool,
+    showDebugHotspot: PropTypes.bool,
+    debugHotspotColor: PropTypes.string,
+    debugHotspotPosition: PropTypes.arrayOf(PropTypes.number)
 };
 
 export default function Model3DViewer({
@@ -541,13 +593,21 @@ export default function Model3DViewer({
     showHotspots = true,
     showLabels = true,
     defaultTransition = 'smooth',
-    introAnimation = true
+    introAnimation = true,
+    showDebugHotspot = false,
+    debugHotspotColor = '#ffff00',
+    debugHotspotX = 0,
+    debugHotspotY = 0,
+    debugHotspotZ = 0
 }) {
     const [activeHotspot, setActiveHotspot] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
     const [cameraTarget, setCameraTarget] = useState(null);
     const [currentTransition, setCurrentTransition] = useState(defaultTransition);
     const controlsRef = useRef();
+
+    // Combinar coordenadas individuales en un array de posición
+    const debugHotspotPosition = [debugHotspotX, debugHotspotY, debugHotspotZ];
 
     const handleHotspotClick = useCallback((hotspot) => {
         if (isAnimating) return;
@@ -607,6 +667,9 @@ export default function Model3DViewer({
                     controlsRef={controlsRef}
                     transitionType={currentTransition}
                     introAnimation={introAnimation}
+                    showDebugHotspot={showDebugHotspot}
+                    debugHotspotColor={debugHotspotColor}
+                    debugHotspotPosition={debugHotspotPosition}
                 />
             </Canvas>
 
@@ -650,8 +713,13 @@ Model3DViewer.propTypes = {
     showHotspots: PropTypes.bool,
     showLabels: PropTypes.bool,
     defaultTransition: PropTypes.oneOf(['smooth', 'linear', 'bounce', 'elastic', 'zoomPull', 'arc', 'spiral']),
-    introAnimation: PropTypes.bool
+    introAnimation: PropTypes.bool,
+    showDebugHotspot: PropTypes.bool,
+    debugHotspotColor: PropTypes.string,
+    debugHotspotX: PropTypes.number,
+    debugHotspotY: PropTypes.number,
+    debugHotspotZ: PropTypes.number
 };
 
 // Exportar tipos de transición para uso externo
-export const TRANSITION_TYPES = ['smooth', 'linear', 'bounce', 'elastic', 'zoomPull', 'arc', 'spiral'];
+const TRANSITION_TYPES = ['smooth', 'linear', 'bounce', 'elastic', 'zoomPull', 'arc', 'spiral'];
